@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Книга рецептів - Варіант 18</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #fef5e8; padding: 20px; }
+    #app { max-width: 1200px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 30px; }
+    .filters { background: white; padding: 20px; border-radius: 16px; margin-bottom: 30px; display: flex; gap: 30px; flex-wrap: wrap; }
+    .search-box, .time-filter { flex: 1; }
+    input[type="text"] { width: 100%; padding: 10px; border-radius: 24px; border: 1px solid #ddd; }
+    input[type="range"] { width: 70%; margin-right: 10px; }
+    .recipes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 20px; }
+    .recipe-card { background: white; border-radius: 20px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: 0.2s; }
+    .recipe-card:hover { transform: translateY(-5px); }
+    .recipe-card img { width: 100%; height: 180px; object-fit: cover; }
+    .card-content { padding: 16px; }
+    .cook-time { background: #e0b354; display: inline-block; padding: 4px 12px; border-radius: 20px; margin: 10px 0; }
+    .difficulty-easy { color: green; font-weight: bold; }
+    .difficulty-medium { color: orange; font-weight: bold; }
+    .difficulty-hard { color: red; font-weight: bold; }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; max-width: 500px; width: 90%; padding: 20px; border-radius: 28px; position: relative; }
+    .close-btn { position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; }
+    .no-results { text-align: center; padding: 50px; background: white; border-radius: 24px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>📖 Книга рецептів</h1>
+      <p>Кулінарний блог Сергійчука Іллі (Варіант 18)</p>
+    </header>
+
+    <div class="filters">
+      <div class="search-box">
+        <label>🔍 Пошук за назвою:</label>
+        <input type="text" v-model="searchText" placeholder="борщ, паста...">
+      </div>
+      <div class="time-filter">
+        <label>⏱ Максимальний час (хв):</label>
+        <input type="range" v-model="maxTime" min="0" max="180" step="5">
+        <span>{{ maxTime }} хв</span>
+      </div>
+    </div>
+
+    <h2>🍲 Рецепти ({{ filteredRecipes.length }})</h2>
+    <div v-if="filteredRecipes.length === 0" class="no-results">😕 Рецептів не знайдено</div>
+    <div v-else class="recipes-grid">
+      <div v-for="recipe in filteredRecipes" :key="recipe.id" class="recipe-card" @click="selectedRecipe = recipe">
+        <img :src="recipe.image" :alt="recipe.title">
+        <div class="card-content">
+          <h3>{{ recipe.title }}</h3>
+          <div class="cook-time">⏱ {{ recipe.cookTime }} хв</div>
+          <div :class="difficultyClass(recipe.difficulty)">🧑‍🍳 {{ recipe.difficulty }}</div>
+          <p>{{ recipe.description.substring(0, 80) }}...</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="selectedRecipe" class="modal" @click.self="selectedRecipe = null">
+      <div class="modal-content">
+        <span class="close-btn" @click="selectedRecipe = null">&times;</span>
+        <h2>{{ selectedRecipe.title }}</h2>
+        <img :src="selectedRecipe.image" style="width:100%; border-radius:16px; margin:10px 0">
+        <p><strong>Час:</strong> {{ selectedRecipe.cookTime }} хв</p>
+        <p><strong>Складність:</strong> {{ selectedRecipe.difficulty }}</p>
+        <p><strong>Опис:</strong> {{ selectedRecipe.description }}</p>
+        <p><strong>Інгредієнти:</strong></p>
+        <ul><li v-for="ing in selectedRecipe.ingredients">{{ ing }}</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, watch } = Vue
+
+    createApp({
+      setup() {
+        const recipes = ref([
+          { id:1, title:'Борщ український', description:'Традиційний червоний борщ з буряком та капустою', cookTime:90, difficulty:'середня', image:'https://images.unian.net/photos/2020_04/1588081977-7108.jpg?0.533115173094685', ingredients:['буряк','капуста','картопля','морква','цибуля','томатна паста'] },
+          { id:2, title:'Паста Карбонара', description:'Італійська паста з беконом, яйцями та пармезаном', cookTime:25, difficulty:'легка', image:'https://images.unian.net/photos/2021_03/1615387932-9078.jpg?0.6738803825235229', ingredients:['спагеті','бекон','яйця','пармезан'] },
+          { id:3, title:'Цезар з куркою', description:'Свіжий салат з куркою та соусом Цезар', cookTime:20, difficulty:'легка', image:'https://i.evrasia.in.ua/data/1400_0/products/F9Iv4XDpGbhJkcSeTNuoQ5k9RRxS0dwPijYFmslk.webp', ingredients:['куряче філе','салат романо','пармезан','соус цезар'] },
+          { id:4, title:'Тірамісу', description:'Ніжний десерт з маскарпоне та кавою', cookTime:40, difficulty:'складна', image:'https://upload.wikimedia.org/wikipedia/commons/e/e7/Classic_Italian_Tiramisu-3_%2829989504485%29.jpg', ingredients:['маскарпоне','кава','печиво савоярді','яйця','какао'] },
+          { id:5, title:'Грецький салат', description:'Салат з фетою та оливками', cookTime:10, difficulty:'легка', image:'https://cdn.abo.media/upload/article/res/770-430/l6e9m4nw7nojas8qooka.jpg', ingredients:['помідори','огірок','цибуля','фета','оливки'] },
+          { id:6, title:'Курячий суп', description:'Домашній суп з локшиною', cookTime:60, difficulty:'середня', image:'https://shuba.life/static/content/thumbs/3648x1824/7/7f/s5usma---c2x1x50px50p-up--39ccdf24c5c8ab05377df0ddcc8f47f7.jpg', ingredients:['курка','морква','локшина','кріп'] }
+        ])
+
+        const searchText = ref('')
+        const maxTime = ref(120)
+        const selectedRecipe = ref(null)
+
+        const filteredRecipes = computed(() => {
+          let result = recipes.value
+          if (searchText.value.trim()) {
+            result = result.filter(r => r.title.toLowerCase().includes(searchText.value.toLowerCase()))
+          }
+          return result.filter(r => r.cookTime <= maxTime.value)
+        })
+
+        watch(searchText, (val) => console.log('Пошук:', val))
+        watch(maxTime, (val) => console.log('Час:', val))
+
+        const difficultyClass = (diff) => {
+          if (diff === 'легка') return 'difficulty-easy'
+          if (diff === 'середня') return 'difficulty-medium'
+          return 'difficulty-hard'
+        }
+
+        return { recipes, searchText, maxTime, filteredRecipes, selectedRecipe, difficultyClass }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>
